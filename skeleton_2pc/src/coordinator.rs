@@ -14,6 +14,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::Duration;
 
+
 use coordinator::ipc_channel::ipc::IpcSender as Sender;
 use coordinator::ipc_channel::ipc::IpcReceiver as Receiver;
 use coordinator::ipc_channel::ipc::TryRecvError;
@@ -44,6 +45,8 @@ pub struct Coordinator {
     state: CoordinatorState,
     running: Arc<AtomicBool>,
     log: oplog::OpLog,
+	client_map: HashMap<String,(Sender<ProtocolMessage>, Receiver<ProtocolMessage>)>,
+	part_map: HashMap<String,(Sender<ProtocolMessage>, Receiver<ProtocolMessage>)>,
 }
 
 ///
@@ -74,6 +77,8 @@ impl Coordinator {
             state: CoordinatorState::Quiescent,
             log: oplog::OpLog::new(log_path),
             running: r.clone(),
+			client_map: HashMap::new(),
+			part_map: HashMap::new(),
             // TODO
         }
     }
@@ -85,10 +90,10 @@ impl Coordinator {
     /// HINT: Keep track of any channels involved!
     /// HINT: You may need to change the signature of this function
     ///
-    pub fn participant_join(&mut self, name: &String) {
+    pub fn participant_join(&mut self, name: &String, tx: Sender<ProtocolMessage>,rx: Receiver<ProtocolMessage>) {
         assert!(self.state == CoordinatorState::Quiescent);
-
-        // TODO
+       // TODO
+	   	self.part_map.insert( name.clone(),(tx,rx));
     }
 
     ///
@@ -98,10 +103,11 @@ impl Coordinator {
     /// HINT: Keep track of any channels involved!
     /// HINT: You may need to change the signature of this function
     ///
-    pub fn client_join(&mut self, name: &String) {
+    pub fn client_join(&mut self, name: &String, tx: Sender<ProtocolMessage>,rx: Receiver<ProtocolMessage>) {
         assert!(self.state == CoordinatorState::Quiescent);
 
         // TODO
+		self.client_map.insert( name.clone(),(tx,rx));
     }
 
     ///

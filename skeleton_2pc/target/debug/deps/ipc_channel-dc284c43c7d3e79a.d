@@ -1,0 +1,11 @@
+/home/rafsalas/rustPCLab/skeleton_2pc/target/debug/deps/ipc_channel-dc284c43c7d3e79a.rmeta: /home/rafsalas/.cargo/registry/src/github.com-1ecc6299db9ec823/ipc-channel-0.14.1/src/lib.rs /home/rafsalas/.cargo/registry/src/github.com-1ecc6299db9ec823/ipc-channel-0.14.1/src/ipc.rs /home/rafsalas/.cargo/registry/src/github.com-1ecc6299db9ec823/ipc-channel-0.14.1/src/platform/mod.rs /home/rafsalas/.cargo/registry/src/github.com-1ecc6299db9ec823/ipc-channel-0.14.1/src/platform/unix/mod.rs /home/rafsalas/.cargo/registry/src/github.com-1ecc6299db9ec823/ipc-channel-0.14.1/src/router.rs
+
+/home/rafsalas/rustPCLab/skeleton_2pc/target/debug/deps/libipc_channel-dc284c43c7d3e79a.rlib: /home/rafsalas/.cargo/registry/src/github.com-1ecc6299db9ec823/ipc-channel-0.14.1/src/lib.rs /home/rafsalas/.cargo/registry/src/github.com-1ecc6299db9ec823/ipc-channel-0.14.1/src/ipc.rs /home/rafsalas/.cargo/registry/src/github.com-1ecc6299db9ec823/ipc-channel-0.14.1/src/platform/mod.rs /home/rafsalas/.cargo/registry/src/github.com-1ecc6299db9ec823/ipc-channel-0.14.1/src/platform/unix/mod.rs /home/rafsalas/.cargo/registry/src/github.com-1ecc6299db9ec823/ipc-channel-0.14.1/src/router.rs
+
+/home/rafsalas/rustPCLab/skeleton_2pc/target/debug/deps/ipc_channel-dc284c43c7d3e79a.d: /home/rafsalas/.cargo/registry/src/github.com-1ecc6299db9ec823/ipc-channel-0.14.1/src/lib.rs /home/rafsalas/.cargo/registry/src/github.com-1ecc6299db9ec823/ipc-channel-0.14.1/src/ipc.rs /home/rafsalas/.cargo/registry/src/github.com-1ecc6299db9ec823/ipc-channel-0.14.1/src/platform/mod.rs /home/rafsalas/.cargo/registry/src/github.com-1ecc6299db9ec823/ipc-channel-0.14.1/src/platform/unix/mod.rs /home/rafsalas/.cargo/registry/src/github.com-1ecc6299db9ec823/ipc-channel-0.14.1/src/router.rs
+
+/home/rafsalas/.cargo/registry/src/github.com-1ecc6299db9ec823/ipc-channel-0.14.1/src/lib.rs:
+/home/rafsalas/.cargo/registry/src/github.com-1ecc6299db9ec823/ipc-channel-0.14.1/src/ipc.rs:
+/home/rafsalas/.cargo/registry/src/github.com-1ecc6299db9ec823/ipc-channel-0.14.1/src/platform/mod.rs:
+/home/rafsalas/.cargo/registry/src/github.com-1ecc6299db9ec823/ipc-channel-0.14.1/src/platform/unix/mod.rs:
+/home/rafsalas/.cargo/registry/src/github.com-1ecc6299db9ec823/ipc-channel-0.14.1/src/router.rs:
