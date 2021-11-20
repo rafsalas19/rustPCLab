@@ -26,6 +26,8 @@ pub struct Client {
     pub id_str: String,
     pub running: Arc<AtomicBool>,
     pub num_requests: u32,
+	tx : Sender<message::ProtocolMessage>,
+	rx : Receiver<message::ProtocolMessage>,
 }
 
 ///
@@ -50,11 +52,17 @@ impl Client {
     ///       the protocol is still running to this constructor
     ///
     pub fn new(id_str: String,
-               running: Arc<AtomicBool>) -> Client {
+               running: Arc<AtomicBool>,
+			   sender: Sender<message::ProtocolMessage>,
+				recvr: Receiver<message::ProtocolMessage>
+			   ) -> Client {
         Client {
             id_str: id_str,
             running: running,
             num_requests: 0,
+			tx: sender,
+			rx: recvr,
+			
             // TODO
         }
     }

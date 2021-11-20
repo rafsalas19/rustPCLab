@@ -22,6 +22,8 @@ pub mod checker;
 pub mod tpcoptions;
 use message::ProtocolMessage;
 use std::thread;
+use client::Client;
+use participant::Participant;
 
 ///
 /// pub fn spawn_child_and_connect(child_opts: &mut tpcoptions::TPCOptions) -> (std::process::Child, Sender<ProtocolMessage>, Receiver<ProtocolMessage>)
@@ -101,9 +103,11 @@ fn run(opts: & tpcoptions::TPCOptions, running: Arc<AtomicBool>) {
            
         let mut client_opts = opts.clone();
 		client_opts.mode = "client".to_string();
+		client_opts.num =counter;
 		let ( client, coor_cl_tx, cl_coor_rx) = spawn_child_and_connect( &mut client_opts.clone());
 		
-        let proc_name=client.id().to_string();
+        let proc_name=client_opts.num.to_string();
+		
 		println!("{}",proc_name);
         coor.client_join(&proc_name,coor_cl_tx, cl_coor_rx);
 				
@@ -116,9 +120,10 @@ fn run(opts: & tpcoptions::TPCOptions, running: Arc<AtomicBool>) {
     loop{
         let mut part_opts = opts.clone();
 		part_opts.mode = "participant".to_string();
+		part_opts.num =counter;
 		let ( participant, coor_part_tx, part_coor_rx) = spawn_child_and_connect( &mut part_opts.clone());
 
-        let proc_name=participant.id().to_string();
+        let proc_name=part_opts.num.to_string();
         coor.participant_join(&proc_name, coor_part_tx, part_coor_rx);
 
         counter+= 1;
@@ -148,6 +153,8 @@ fn run_client(opts: & tpcoptions::TPCOptions, running: Arc<AtomicBool>) {
 	let (coor_cl_tx, coor_cl_rx):(Sender::<ProtocolMessage>, Receiver::<ProtocolMessage>) = channel().unwrap();
 	server.send((coor_cl_tx,cl_coor_rx)).unwrap();
 	
+	let client = Client::new(opts.num.to_string(),  running,  cl_coor_tx,coor_cl_rx);
+	
 }
 
 ///
@@ -170,6 +177,10 @@ fn run_participant(opts: & tpcoptions::TPCOptions, running: Arc<AtomicBool>) {
     let (part_coor_tx, part_coor_rx):(Sender::<ProtocolMessage>, Receiver::<ProtocolMessage>) = channel().unwrap();
 	let (coor_part_tx, coor_part_rx):(Sender::<ProtocolMessage>, Receiver::<ProtocolMessage>) = channel().unwrap();
 	server.send((coor_part_tx,part_coor_rx)).unwrap();
+	
+	
+	let particpant = Participant::new( opts.num.to_string(), opts.log_path.clone(), running,opts.send_success_probability, opts.operation_success_probability,part_coor_tx,coor_part_rx);
+	
 }
 
 fn main() {
@@ -198,71 +209,6 @@ fn main() {
             print!("\n");
         }
     }).expect("Error setting signal handler!");
-
-
-  /*  let (server, name) = IpcOneShotServer::<u8>::new().unwrap();
-    let (server2, name2) = IpcOneShotServer::<u8>::new().unwrap();
-    let (tx1, rx1): (Sender<u8>, Receiver<u8>) = channel().unwrap();
-    let (tx0, rx0): (Sender<u8>, Receiver<u8>) = channel().unwrap();
-    let tx0 = Sender::<u8>::connect(name).unwrap();
-    let tx1 = Sender::<u8>::connect(name2).unwrap();
-    
-
-    tx0.send(1).unwrap();
-    tx1.send(2).unwrap();
-
-    let (rx1, data) = server.accept().unwrap();
-    println!( "{}",data.to_string());
-
-    let (rx0, data2) = server2.accept().unwrap();
-    println!( "this is parent {}",data2.to_string());
-
-    let child =thread::spawn(move || {
-        loop{
-            match rx1.recv() {
-            Ok(res) => { // Do something interesting wth your result
-                println!("Received data... {}", res);
-                tx1.send(1).unwrap();
-                  if res == 4{
-                    tx1.send(4).unwrap();
-                        break;
-                    }  
-                },
-                Err(_) => {
-                    // Do something else useful while we wait
-                    println!("Still waiting...");
-                }
-            }
-  
-        }
-    });
-
-    tx0.send(2).unwrap();
-    tx0.send(2).unwrap();
-    tx0.send(3).unwrap();
-    tx0.send(4).unwrap();
-    loop{
-        match rx0.recv() {
-        Ok(res) => { // Do something interesting wth your result
-            println!("Parent Received data... {}", res);
-              if res == 4{
-                    break;
-                }  
-            },
-            Err(_) => {
-                // Do something else useful while we wait
-                println!("Still waiting...");
-            }
-        }
-
-    }
-
-
-    println!("end\n");
-    let _result = child.join();*/
-
-    //println!( "{}",data.to_string());
-
 
     // Execute main logic
     match opts.mode.as_ref() {

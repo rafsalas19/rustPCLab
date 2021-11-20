@@ -18,6 +18,7 @@ use participant::ipc_channel::ipc::IpcReceiver as Receiver;
 use participant::ipc_channel::ipc::TryRecvError;
 use participant::ipc_channel::ipc::IpcSender as Sender;
 
+use message;
 use message::MessageType;
 use message::ProtocolMessage;
 use message::RequestStatus;
@@ -48,6 +49,8 @@ pub struct Participant {
     running: Arc<AtomicBool>,
     send_success_prob: f64,
     operation_success_prob: f64,
+	tx : Sender<message::ProtocolMessage>,
+	rx : Receiver<message::ProtocolMessage>,
 }
 
 ///
@@ -77,7 +80,10 @@ impl Participant {
         log_path: String,
         r: Arc<AtomicBool>,
         send_success_prob: f64,
-        operation_success_prob: f64) -> Participant {
+        operation_success_prob: f64,
+		sender: Sender<message::ProtocolMessage>,
+		recvr: Receiver<message::ProtocolMessage>
+		) -> Participant {
 
         Participant {
             id_str: id_str,
@@ -86,6 +92,8 @@ impl Participant {
             running: r,
             send_success_prob: send_success_prob,
             operation_success_prob: operation_success_prob,
+			tx: sender,
+			rx: recvr,
             // TODO
         }
     }
