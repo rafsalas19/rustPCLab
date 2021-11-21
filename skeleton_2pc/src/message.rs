@@ -61,28 +61,31 @@ pub struct ProtocolMessage {
     pub txid: String,        // Transaction ID from the client (unique relative to other transactions)
     pub senderid: String,    // Sender ID (unique across all senders)
     pub opid: u32,           // Operation ID (relative to the original client who started this transaction)
+	pub cl_id: u32,
 }
 
 ///
 /// ProtocolMessage Implementation
 ///
 impl ProtocolMessage {
-    pub fn generate(t: MessageType, tid: String, sid: String, oid: u32) -> ProtocolMessage {
+    pub fn generate(t: MessageType, tid: String, sid: String, oid: u32,cid: u32) -> ProtocolMessage {
         ProtocolMessage {
             mtype: t,
             uid: COUNTER.fetch_add(1, Ordering::SeqCst),
             txid: tid,
             senderid: sid,
             opid: oid,
+			cl_id: cid,
         }
     }
-    pub fn instantiate(t: MessageType, u: u32, tid: String, sid: String, oid: u32) -> ProtocolMessage {
+    pub fn instantiate(t: MessageType, u: u32, tid: String, sid: String, oid: u32,cid: u32) -> ProtocolMessage {
         ProtocolMessage {
             mtype: t,
             uid: u,
             txid: tid,
             senderid: sid,
             opid: oid,
+			cl_id: cid,
         }
     }
     pub fn from_string(line: &String) -> ProtocolMessage {

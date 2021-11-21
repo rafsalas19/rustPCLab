@@ -79,7 +79,7 @@ impl OpLog {
         let mut log = lck.lock().unwrap();
         self.seqno += 1;
         let id = self.seqno;
-        let pm = message::ProtocolMessage::generate(t, tid, sender, op);
+        let pm = message::ProtocolMessage::generate(t, tid, sender, op,0);
         serde_json::to_writer(&mut self.lf, &pm).unwrap();
         writeln!(&mut self.lf).unwrap();
         self.lf.flush().unwrap();

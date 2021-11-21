@@ -96,8 +96,7 @@ fn run(opts: & tpcoptions::TPCOptions, running: Arc<AtomicBool>) {
     println!("{}", opts.mode);
     // TODO
 
-    //client.wait().unwrap();
-    let mut coor = coordinator::Coordinator::new( coord_log_path, &running);
+    let mut coor = coordinator::Coordinator::new( coord_log_path, &running, opts.num_requests.clone());
     let mut counter = 0;
 
     loop{

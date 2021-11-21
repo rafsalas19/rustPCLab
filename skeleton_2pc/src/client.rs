@@ -91,11 +91,13 @@ impl Client {
 
         // Create a new request with a unique TXID.
         self.num_requests = self.num_requests + 1;
-        let txid = format!("{}_op_{}", self.id_str.clone(), self.num_requests);
+        let txid = format!("client{}_op_{}", self.id_str.clone(), self.num_requests);
+		let cl_id: u32 = self.id_str.parse().unwrap();
         let pm = message::ProtocolMessage::generate(message::MessageType::ClientRequest,
                                                     txid.clone(),
                                                     self.id_str.clone(),
-                                                    self.num_requests);
+                                                    self.num_requests,
+													cl_id.clone());
         info!("{}::Sending operation #{}", self.id_str.clone(), self.num_requests);
 
         // TODO
@@ -159,13 +161,19 @@ impl Client {
 		let mut counter =0;
 		loop{
 			self.send_next_operation();
+			counter+= 1;
+			if counter == n_requests{
+				break;
+			}
+		}
+		counter =0;
+		loop{
 			self.recv_result();
 			counter+= 1;
 			if counter == n_requests{
 				break;
 			}
 		}
-		
         self.wait_for_exit_signal();
         self.report_status();
     }

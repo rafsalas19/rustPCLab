@@ -47,6 +47,7 @@ pub struct Coordinator {
     log: oplog::OpLog,
 	client_map: HashMap<String,(Sender<ProtocolMessage>, Receiver<ProtocolMessage>)>,
 	part_map: HashMap<String,(Sender<ProtocolMessage>, Receiver<ProtocolMessage>)>,
+	num_requests: u32,
 }
 
 ///
@@ -71,7 +72,7 @@ impl Coordinator {
     ///
     pub fn new(
         log_path: String,
-        r: &Arc<AtomicBool>) -> Coordinator {
+        r: &Arc<AtomicBool>, nr: u32) -> Coordinator {
 
         Coordinator {
             state: CoordinatorState::Quiescent,
@@ -79,7 +80,7 @@ impl Coordinator {
             running: r.clone(),
 			client_map: HashMap::new(),
 			part_map: HashMap::new(),
-            // TODO
+            num_requests: nr,
         }
     }
 
@@ -123,7 +124,17 @@ impl Coordinator {
 
         println!("coordinator     :\tCommitted: {:6}\tAborted: {:6}\tUnknown: {:6}", successful_ops, failed_ops, unknown_ops);
     }
-
+	pub fn send_result(&mut self,pm: ProtocolMessage, &tx: Sender<ProtocolMessage>){
+		
+		match pm.mtype{
+			MessageType::ParticipantVoteCommit => pm.mtype = MessageType::ClientResultCommit,  
+			MessageType::ParticipantVoteAbort => pm.mtype = MessageType::ClientResultAbort, 
+			_ =>{
+				//nothing
+			}								
+		}
+		coor_cl_tx.send(pm).unwrap()
+	}
     ///
     /// protocol()
     /// Implements the coordinator side of the 2PC protocol
@@ -133,6 +144,62 @@ impl Coordinator {
     pub fn protocol(&mut self) {
 
         // TODO
+		//receive request from client
+		let mut request: ProtocolMessage;
+		let mut pm_queue: Vec<ProtocolMessage> = Vec::new();
+		let mut counter =0;
+		loop{
+			for (id, val) in &self.client_map {
+					let (_, rx)= val;
+					match rx.recv() {
+					Ok(res) => { 
+							request = res.clone();
+							pm_queue.push(request);				
+					},
+					Err(_) => {
+						//wait
+					}
+				}
+			}
+			counter+=1;
+			if counter==self.num_requests {
+				break;
+			}
+		}
+		//send request to participants
+		let mut msg_in_flight: Vec<(ProtocolMessage,String)>= Vec::new();
+		while pm_queue.len() !=0{
+			let mut msg = pm_queue[0].clone();	
+			msg.mtype = MessageType::CoordinatorPropose;
+			//send message to participant
+			for (id, val) in &self.part_map{				
+				//msg_in_flight.push(msg.clone(),id.clone());			
+				let (tx,_)= val;
+				tx.send(msg).unwrap();
+			}
+					
+			//recieve messages
+			let mut votingblock: Vec<(bool)>= Vec::new();
+			loop{
+				for (id, val) in &self.part_map{
+					let (_, rx) = val;
+					match rx.try_recv() {
+						Ok(res) => {
+							let part_id: u32 = self.id.parse().unwrap();
+							
+						},
+						Err(TryRecvError::Empty) => continue,
+						Err(_) =>{// an error occured
+						}
+					}	
+				}
+				
+			}
+			
+			pm_queue.remove(0);
+			
+		}
+
 
         self.report_status();
     }

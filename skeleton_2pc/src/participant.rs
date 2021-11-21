@@ -193,7 +193,23 @@ impl Participant {
         // TODO
 		loop{
 			//recvr
-			
+			match self.rx.recv() {
+				Ok(res) => { 
+					let mut request = res.clone();
+					let optional = None;
+					self.perform_operation(&optional);
+					match self.state{
+						ParticipantState::VotedCommit => request.mtype = MessageType::ParticipantVoteCommit,
+						ParticipantState::VotedAbort => request.mtype = MessageType::ParticipantVoteAbort,
+						_ =>  request.mtype = MessageType::ParticipantVoteAbort,
+					}
+					self.send(request);
+					self.state=ParticipantState::Quiescent;
+				},
+				Err(_) => {
+
+				}
+			}
 			//ops
 			//perform_operation(&mut self, request_option: &Option<ProtocolMessage>)
 			
