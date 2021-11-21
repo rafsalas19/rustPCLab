@@ -19,7 +19,6 @@ use client::ipc_channel::ipc::IpcSender as Sender;
 use message;
 use message::MessageType;
 use message::RequestStatus;
-
 // Client state and primitives for communicating with the coordinator
 #[derive(Debug)]
 pub struct Client {
@@ -28,6 +27,9 @@ pub struct Client {
     pub num_requests: u32,
 	tx : Sender<message::ProtocolMessage>,
 	rx : Receiver<message::ProtocolMessage>,
+	successful_ops: u64,
+    failed_ops: u64,
+    unknown_ops: u64,
 }
 
 ///
@@ -62,7 +64,10 @@ impl Client {
             num_requests: 0,
 			tx: sender,
 			rx: recvr,
-			
+			successful_ops: 0,
+			failed_ops: 0,
+			unknown_ops: 0,
+					
             // TODO
         }
     }
@@ -73,9 +78,8 @@ impl Client {
     ///
     pub fn wait_for_exit_signal(&mut self) {
         trace!("{}::Waiting for exit signal", self.id_str.clone());
-
         // TODO
-
+		
         trace!("{}::Exiting", self.id_str.clone());
     }
 
@@ -95,6 +99,7 @@ impl Client {
         info!("{}::Sending operation #{}", self.id_str.clone(), self.num_requests);
 
         // TODO
+		self.tx.send(pm).unwrap();
 
         trace!("{}::Sent operation #{}", self.id_str.clone(), self.num_requests);
     }
@@ -108,8 +113,23 @@ impl Client {
     pub fn recv_result(&mut self) {
 
         info!("{}::Receiving Coordinator Result", self.id_str.clone());
-
+		//let pm: message::ProtocolMessage ;
         // TODO
+		match self.rx.recv() {
+			Ok(res) => { // Do something interesting wth your result
+				match res.mtype{
+					MessageType::ClientResultCommit => self.successful_ops+=1,
+					MessageType::ClientResultAbort => self.failed_ops+=1,   
+					//CoordinatorExit => self.running =false,
+					_ => println!("not supposed to be here")
+				}
+            },
+            Err(_) => {
+                // Do something else useful while we wait
+                println!("Still waiting...");
+            }
+        }
+		
     }
 
     ///
@@ -119,8 +139,8 @@ impl Client {
     ///
     pub fn report_status(&mut self) {
         // TODO: Collect actual stats
-        let successful_ops: u64 = 0;
-        let failed_ops: u64 = 0;
+        let successful_ops: u64 = self.successful_ops;
+        let failed_ops: u64 = self.failed_ops;
         let unknown_ops: u64 = 0;
 
         println!("{:16}:\tCommitted: {:6}\tAborted: {:6}\tUnknown: {:6}", self.id_str.clone(), successful_ops, failed_ops, unknown_ops);
@@ -136,6 +156,16 @@ impl Client {
     pub fn protocol(&mut self, n_requests: u32) {
 
         // TODO
+		let mut counter =0;
+		loop{
+			self.send_next_operation();
+			self.recv_result();
+			counter+= 1;
+			if counter == n_requests{
+				break;
+			}
+		}
+		
         self.wait_for_exit_signal();
         self.report_status();
     }

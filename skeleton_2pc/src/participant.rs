@@ -18,6 +18,7 @@ use participant::ipc_channel::ipc::IpcReceiver as Receiver;
 use participant::ipc_channel::ipc::TryRecvError;
 use participant::ipc_channel::ipc::IpcSender as Sender;
 
+
 use message;
 use message::MessageType;
 use message::ProtocolMessage;
@@ -51,6 +52,9 @@ pub struct Participant {
     operation_success_prob: f64,
 	tx : Sender<message::ProtocolMessage>,
 	rx : Receiver<message::ProtocolMessage>,
+	successful_ops: u64,
+    failed_ops: u64,
+    unknown_ops: u64,
 }
 
 ///
@@ -94,6 +98,9 @@ impl Participant {
             operation_success_prob: operation_success_prob,
 			tx: sender,
 			rx: recvr,
+			successful_ops: 0,
+			failed_ops: 0,
+			unknown_ops: 0,
             // TODO
         }
     }
@@ -110,8 +117,12 @@ impl Participant {
         let x: f64 = random();
         if x <= self.send_success_prob {
             // TODO: Send success
+			self.tx.send(pm).unwrap();
+		
+			
         } else {
             // TODO: Send fail
+			
         }
     }
 
@@ -133,8 +144,12 @@ impl Participant {
         let x: f64 = random();
         if x <= self.operation_success_prob {
             // TODO: Successful operation
+			self.successful_ops+=1;
+			self.state=ParticipantState::VotedCommit;
         } else {
             // TODO: Failed operation
+			self.failed_ops+=1;
+			self.state=ParticipantState::VotedAbort;
         }
 
         true
@@ -147,9 +162,9 @@ impl Participant {
     ///
     pub fn report_status(&mut self) {
         // TODO: Collect actual stats
-        let successful_ops: u64 = 0;
-        let failed_ops: u64 = 0;
-        let unknown_ops: u64 = 0;
+        let successful_ops: u64 = self.successful_ops;
+        let failed_ops: u64 = self.failed_ops;
+        let unknown_ops: u64 = self.unknown_ops;
 
         println!("{:16}:\tCommitted: {:6}\tAborted: {:6}\tUnknown: {:6}", self.id_str.clone(), successful_ops, failed_ops, unknown_ops);
     }
@@ -176,6 +191,17 @@ impl Participant {
         trace!("{}::Beginning protocol", self.id_str.clone());
 
         // TODO
+		loop{
+			//recvr
+			
+			//ops
+			//perform_operation(&mut self, request_option: &Option<ProtocolMessage>)
+			
+			//send
+			//send(&mut self, pm: ProtocolMessage) 
+			
+		}
+		
 
         self.wait_for_exit_signal();
         self.report_status();

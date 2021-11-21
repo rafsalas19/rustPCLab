@@ -24,6 +24,7 @@ use message::ProtocolMessage;
 use std::thread;
 use client::Client;
 use participant::Participant;
+use std::{time::Duration};
 
 ///
 /// pub fn spawn_child_and_connect(child_opts: &mut tpcoptions::TPCOptions) -> (std::process::Child, Sender<ProtocolMessage>, Receiver<ProtocolMessage>)
@@ -153,7 +154,8 @@ fn run_client(opts: & tpcoptions::TPCOptions, running: Arc<AtomicBool>) {
 	let (coor_cl_tx, coor_cl_rx):(Sender::<ProtocolMessage>, Receiver::<ProtocolMessage>) = channel().unwrap();
 	server.send((coor_cl_tx,cl_coor_rx)).unwrap();
 	
-	let client = Client::new(opts.num.to_string(),  running,  cl_coor_tx,coor_cl_rx);
+	let mut client = Client::new(opts.num.to_string(),  running,  cl_coor_tx,coor_cl_rx);
+	client.protocol(opts.num_requests.clone());
 	
 }
 
@@ -179,8 +181,8 @@ fn run_participant(opts: & tpcoptions::TPCOptions, running: Arc<AtomicBool>) {
 	server.send((coor_part_tx,part_coor_rx)).unwrap();
 	
 	
-	let particpant = Participant::new( opts.num.to_string(), opts.log_path.clone(), running,opts.send_success_probability, opts.operation_success_probability,part_coor_tx,coor_part_rx);
-	
+	let mut participant = Participant::new( opts.num.to_string(), opts.log_path.clone(), running,opts.send_success_probability, opts.operation_success_probability,part_coor_tx,coor_part_rx);
+	participant.protocol();
 }
 
 fn main() {
