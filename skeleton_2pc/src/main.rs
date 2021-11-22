@@ -132,7 +132,7 @@ fn run(opts: & tpcoptions::TPCOptions, running: Arc<AtomicBool>) {
         }
     };
     
-
+	coor.protocol();
 }
 
 ///

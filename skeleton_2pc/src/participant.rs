@@ -209,13 +209,7 @@ impl Participant {
 				Err(_) => {
 
 				}
-			}
-			//ops
-			//perform_operation(&mut self, request_option: &Option<ProtocolMessage>)
-			
-			//send
-			//send(&mut self, pm: ProtocolMessage) 
-			
+			}			
 		}
 		
 

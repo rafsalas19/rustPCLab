@@ -48,6 +48,9 @@ pub struct Coordinator {
 	client_map: HashMap<String,(Sender<ProtocolMessage>, Receiver<ProtocolMessage>)>,
 	part_map: HashMap<String,(Sender<ProtocolMessage>, Receiver<ProtocolMessage>)>,
 	num_requests: u32,
+	successful_ops: u64,
+    failed_ops: u64,
+    unknown_ops: u64,
 }
 
 ///
@@ -81,6 +84,9 @@ impl Coordinator {
 			client_map: HashMap::new(),
 			part_map: HashMap::new(),
             num_requests: nr,
+			successful_ops: 0,
+			failed_ops: 0,
+			unknown_ops: 0,
         }
     }
 
@@ -118,13 +124,13 @@ impl Coordinator {
     ///
     pub fn report_status(&mut self) {
         // TODO: Collect actual stats
-        let successful_ops: u64 = 0;
-        let failed_ops: u64 = 0;
-        let unknown_ops: u64 = 0;
+        let successful_ops: u64 = self.successful_ops;
+        let failed_ops: u64 = self.failed_ops;
+        let unknown_ops: u64 = self.unknown_ops;
 
         println!("coordinator     :\tCommitted: {:6}\tAborted: {:6}\tUnknown: {:6}", successful_ops, failed_ops, unknown_ops);
     }
-	pub fn send_result(&mut self,pm: ProtocolMessage, &tx: Sender<ProtocolMessage>){
+	pub fn send_result(&mut self, mut pm:  ProtocolMessage, tx: &Sender<ProtocolMessage>){
 		
 		match pm.mtype{
 			MessageType::ParticipantVoteCommit => pm.mtype = MessageType::ClientResultCommit,  
@@ -133,7 +139,7 @@ impl Coordinator {
 				//nothing
 			}								
 		}
-		coor_cl_tx.send(pm).unwrap()
+		tx.send(pm).unwrap();
 	}
     ///
     /// protocol()
@@ -153,6 +159,7 @@ impl Coordinator {
 					let (_, rx)= val;
 					match rx.recv() {
 					Ok(res) => { 
+						println!("requests{}", res.clone().txid);
 							request = res.clone();
 							pm_queue.push(request);				
 					},
@@ -166,41 +173,74 @@ impl Coordinator {
 				break;
 			}
 		}
+		
 		//send request to participants
 		let mut msg_in_flight: Vec<(ProtocolMessage,String)>= Vec::new();
 		while pm_queue.len() !=0{
+			let mut commit: bool = true;
 			let mut msg = pm_queue[0].clone();	
 			msg.mtype = MessageType::CoordinatorPropose;
 			//send message to participant
 			for (id, val) in &self.part_map{				
 				//msg_in_flight.push(msg.clone(),id.clone());			
 				let (tx,_)= val;
-				tx.send(msg).unwrap();
+				tx.send(msg.clone()).unwrap();
 			}
 					
 			//recieve messages
-			let mut votingblock: Vec<(bool)>= Vec::new();
+			let mut votingblock: HashMap<u32, RequestStatus> = HashMap::new();
 			loop{
 				for (id, val) in &self.part_map{
+					let part_id: u32 = id.parse().unwrap();
 					let (_, rx) = val;
 					match rx.try_recv() {
 						Ok(res) => {
-							let part_id: u32 = self.id.parse().unwrap();
-							
+							let mtype :MessageType =res.mtype;
+							match (mtype) {
+								(MessageType::ParticipantVoteCommit) => votingblock.insert(part_id,RequestStatus::Committed),
+								(MessageType::ParticipantVoteAbort) => votingblock.insert(part_id,RequestStatus::Aborted),
+								_ => votingblock.insert(part_id,RequestStatus::Unknown),
+							};
 						},
 						Err(TryRecvError::Empty) => continue,
 						Err(_) =>{// an error occured
-						}
-					}	
+							votingblock.insert(part_id,RequestStatus::Unknown);
+						},
+					};	
 				}
 				
 			}
 			
-			pm_queue.remove(0);
 			
+			for (id,val) in votingblock{
+				if val != RequestStatus::Committed {
+					commit = false;
+					break;
+				}
+			}
+			
+			if commit{
+				let id = pm_queue[0].cl_id.to_string();
+				let mut pm =pm_queue[0].clone();
+				pm.mtype = MessageType::ClientResultCommit; 
+				let (coor_cl_tx, _) = self.client_map.get(&id).unwrap();
+				coor_cl_tx.send(pm).unwrap();
+				self.successful_ops+=1;
+			}
+			else{
+				let id = pm_queue[0].cl_id.to_string();
+				let mut pm =pm_queue[0].clone();
+				pm.mtype = MessageType::ClientResultAbort; 
+				let (coor_cl_tx, _) = self.client_map.get(&id).unwrap();
+				coor_cl_tx.send(pm).unwrap();
+				self.failed_ops+=1;
+			}
+			
+			pm_queue.remove(0);
 		}
 
 
         self.report_status();
+		
     }
 }
