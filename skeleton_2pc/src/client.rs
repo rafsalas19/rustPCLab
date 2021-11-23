@@ -78,9 +78,18 @@ impl Client {
     ///
     pub fn wait_for_exit_signal(&mut self) {
         trace!("{}::Waiting for exit signal", self.id_str.clone());
-        // TODO
+        match self.rx.recv() {
+			Ok(res) => { // Do something interesting wth your result
+				if res.mtype==MessageType::CoordinatorExit &&  res.txid == "done" {
+					      trace!("{}::Exiting", self.id_str.clone());
+				}
+            },
+            Err(_) => {
+                      trace!("{}::Exiting", self.id_str.clone());
+            }
+        }
 		
-        trace!("{}::Exiting", self.id_str.clone());
+  
     }
 
     ///
@@ -112,13 +121,15 @@ impl Client {
     /// last issued request. Note that we assume the coordinator does
     /// not fail in this simulation
     ///
-    pub fn recv_result(&mut self) {
+    pub fn recv_result(&mut self)-> bool {
 
         info!("{}::Receiving Coordinator Result", self.id_str.clone());
-		//let pm: message::ProtocolMessage ;
-        // TODO
+
 		match self.rx.recv() {
 			Ok(res) => { // Do something interesting wth your result
+				if res.mtype==MessageType::CoordinatorExit &&  res.txid == "done" {
+					return false	
+				}
 				match res.mtype{
 					MessageType::ClientResultCommit => self.successful_ops+=1,
 					MessageType::ClientResultAbort => self.failed_ops+=1,   
@@ -127,11 +138,10 @@ impl Client {
 				}
             },
             Err(_) => {
-                // Do something else useful while we wait
-                println!("Still waiting...");
+
             }
         }
-		
+		true
     }
 
     ///
@@ -145,7 +155,7 @@ impl Client {
         let failed_ops: u64 = self.failed_ops;
         let unknown_ops: u64 = 0;
 
-        println!("{:16}:\tCommitted: {:6}\tAborted: {:6}\tUnknown: {:6}", self.id_str.clone(), successful_ops, failed_ops, unknown_ops);
+        println!("{:16}:\tCommitted: {:6}\tAborted: {:6}\tUnknown: {:6}", format!("client_{}",self.id_str.clone()), successful_ops, failed_ops, unknown_ops);
     }
 
     ///
@@ -157,7 +167,7 @@ impl Client {
     ///
     pub fn protocol(&mut self, n_requests: u32) {
 
-        // TODO
+       // println!("client protocol{}",self.id_str);
 		let mut counter =0;
 		loop{
 			self.send_next_operation();
@@ -167,13 +177,16 @@ impl Client {
 			}
 		}
 		counter =0;
+		
 		loop{
-			self.recv_result();
+			let success = self.recv_result();
+			
 			counter+= 1;
-			if counter == n_requests{
+			if counter == n_requests || !success{
 				break;
 			}
 		}
+		//println!("received results {}",self.id_str);
         self.wait_for_exit_signal();
         self.report_status();
     }

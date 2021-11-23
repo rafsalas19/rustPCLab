@@ -13,7 +13,7 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::Duration;
-
+use std::time::Instant;
 
 use coordinator::ipc_channel::ipc::IpcSender as Sender;
 use coordinator::ipc_channel::ipc::IpcReceiver as Receiver;
@@ -159,7 +159,7 @@ impl Coordinator {
 					let (_, rx)= val;
 					match rx.recv() {
 					Ok(res) => { 
-						println!("requests{}", res.clone().txid);
+						//println!("requests{}", res.clone().txid);
 							request = res.clone();
 							pm_queue.push(request);				
 					},
@@ -173,25 +173,30 @@ impl Coordinator {
 				break;
 			}
 		}
-		
+		self.state = CoordinatorState::ReceivedRequest;
 		//send request to participants
-		let mut msg_in_flight: Vec<(ProtocolMessage,String)>= Vec::new();
+
 		while pm_queue.len() !=0{
+			self.state = CoordinatorState::ReceivedRequest;
 			let mut commit: bool = true;
 			let mut msg = pm_queue[0].clone();	
 			msg.mtype = MessageType::CoordinatorPropose;
-			//send message to participant
-			for (id, val) in &self.part_map{				
-				//msg_in_flight.push(msg.clone(),id.clone());			
+			//send request to participant
+			for (id, val) in &self.part_map{							
 				let (tx,_)= val;
 				tx.send(msg.clone()).unwrap();
 			}
-					
-			//recieve messages
+			self.state = CoordinatorState::ProposalSent;
+			
+			//recieve messages votes
 			let mut votingblock: HashMap<u32, RequestStatus> = HashMap::new();
-			loop{
+			let timer = Instant::now();
+			loop{				
 				for (id, val) in &self.part_map{
-					let part_id: u32 = id.parse().unwrap();
+					let part_id: u32 = id.parse().unwrap();				
+					if votingblock.contains_key(&part_id) == true{
+						continue;
+					}
 					let (_, rx) = val;
 					match rx.try_recv() {
 						Ok(res) => {
@@ -199,48 +204,109 @@ impl Coordinator {
 							match (mtype) {
 								(MessageType::ParticipantVoteCommit) => votingblock.insert(part_id,RequestStatus::Committed),
 								(MessageType::ParticipantVoteAbort) => votingblock.insert(part_id,RequestStatus::Aborted),
-								_ => votingblock.insert(part_id,RequestStatus::Unknown),
+								_ => votingblock.insert(part_id,RequestStatus::Aborted),
 							};
 						},
-						Err(TryRecvError::Empty) => continue,
+						Err(TryRecvError::Empty) =>{
+							let elapsed_time = timer.elapsed();
+								if elapsed_time >=  Duration::from_secs(1){
+									break;
+								}
+							//no op;
+						},
 						Err(_) =>{// an error occured
-							votingblock.insert(part_id,RequestStatus::Unknown);
+							votingblock.insert(part_id,RequestStatus::Aborted);
 						},
 					};	
 				}
-				
+							
+				//timeOut
+				let elapsed_time = timer.elapsed();
+				if elapsed_time >=  Duration::from_secs(1){
+					for (id, val) in &self.part_map{
+						let part_id: u32 = id.parse().unwrap();
+						if votingblock.contains_key(&part_id) == false{
+							votingblock.insert(part_id,RequestStatus::Aborted);
+						}				
+					}
+					break;
+				}
+				if votingblock.len() == self.part_map.len(){
+					break;
+				} 
 			}
-			
-			
+		
+			//voting alalysis
 			for (id,val) in votingblock{
 				if val != RequestStatus::Committed {
 					commit = false;
 					break;
 				}
 			}
-			
+			//decision
+			let id = pm_queue[0].cl_id.to_string();
+			let mut pm =pm_queue[0].clone();
+			let mut coor_mtype :  MessageType;
+			//message to clients
 			if commit{
-				let id = pm_queue[0].cl_id.to_string();
-				let mut pm =pm_queue[0].clone();
+				self.state = CoordinatorState::ReceivedVotesCommit;
+				coor_mtype= MessageType::CoordinatorCommit;
 				pm.mtype = MessageType::ClientResultCommit; 
-				let (coor_cl_tx, _) = self.client_map.get(&id).unwrap();
-				coor_cl_tx.send(pm).unwrap();
 				self.successful_ops+=1;
 			}
 			else{
-				let id = pm_queue[0].cl_id.to_string();
-				let mut pm =pm_queue[0].clone();
+				self.state = CoordinatorState::ReceivedVotesAbort;
+				coor_mtype= MessageType::CoordinatorAbort;
 				pm.mtype = MessageType::ClientResultAbort; 
-				let (coor_cl_tx, _) = self.client_map.get(&id).unwrap();
-				coor_cl_tx.send(pm).unwrap();
 				self.failed_ops+=1;
 			}
-			
+			let (coor_cl_tx, _) = self.client_map.get(&id).unwrap();
+			coor_cl_tx.send(pm.clone()).unwrap();
+			pm.mtype = coor_mtype;
+			self.log.append( pm.mtype.clone(), pm.txid.clone(), pm.senderid.clone(), pm.opid.clone());
+			//Decision to participants
+			for (id, val) in &self.part_map{						
+				let (tx,_)= val;
+				tx.send(pm.clone()).unwrap();
+			}
+			self.state = CoordinatorState::SentGlobalDecision;
+			//request dequeued
 			pm_queue.remove(0);
+			//Gracefull exit
+			
+			if !self.running.load(Ordering::SeqCst){
+				//participants
+				for (id, val) in &self.part_map{						
+					let (tx,_)= val;
+					let pm = ProtocolMessage::generate( MessageType::CoordinatorExit,"done".to_string(),"done".to_string(),0,0);//t: MessageType, tid: String, sid: String, oid: u32,cid: u32
+					tx.send(pm.clone()).unwrap();
+				}
+				for (id, val) in &self.client_map{						
+					let (tx,_)= val;
+					let pm = ProtocolMessage::generate( MessageType::CoordinatorExit,"done".to_string(),"done".to_string(),0,0);//t: MessageType, tid: String, sid: String, oid: u32,cid: u32
+					tx.send(pm.clone()).unwrap();
+				}
+				self.report_status();
+				return;
+			}
+						
 		}
 
 
         self.report_status();
+		//exit now
+		//tell participants it time to shut down
+		println!("ending coor");
+		for (id, val) in &self.part_map{						
+				let (tx,_)= val;
+				let pm = ProtocolMessage::generate( MessageType::CoordinatorExit,"done".to_string(),"done".to_string(),0,0);//t: MessageType, tid: String, sid: String, oid: u32,cid: u32
+				tx.send(pm.clone()).unwrap();
+		}
+		for (id, val) in &self.client_map{						
+			let (tx,_)= val;
+			let pm = ProtocolMessage::generate( MessageType::CoordinatorExit,"done".to_string(),"done".to_string(),0,0);//t: MessageType, tid: String, sid: String, oid: u32,cid: u32
+			tx.send(pm.clone()).unwrap();
+		}
 		
     }
 }

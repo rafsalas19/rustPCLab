@@ -115,15 +115,17 @@ impl Participant {
     ///
     pub fn send(&mut self, pm: ProtocolMessage) {
         let x: f64 = random();
-        if x <= self.send_success_prob {
+      //  if x <= self.send_success_prob {
             // TODO: Send success
 			self.tx.send(pm).unwrap();
 		
 			
-        } else {
-            // TODO: Send fail
+      //  } 
+		//else {
+            // just do not retry
+			//println!("comm faile on p{}", self.id_str.clone());
 			
-        }
+      //  }
     }
 
     ///
@@ -166,7 +168,7 @@ impl Participant {
         let failed_ops: u64 = self.failed_ops;
         let unknown_ops: u64 = self.unknown_ops;
 
-        println!("{:16}:\tCommitted: {:6}\tAborted: {:6}\tUnknown: {:6}", self.id_str.clone(), successful_ops, failed_ops, unknown_ops);
+        println!("{:16}:\tCommitted: {:6}\tAborted: {:6}\tUnknown: {:6}", format!("particpant_{}",self.id_str.clone()), successful_ops, failed_ops, unknown_ops);
     }
 
     ///
@@ -188,32 +190,68 @@ impl Participant {
     /// HINT: Wait for some kind of exit signal before returning from the protocol!
     ///
     pub fn protocol(&mut self) {
-        trace!("{}::Beginning protocol", self.id_str.clone());
 
-        // TODO
+        trace!("{}::Beginning protocol", self.id_str.clone());
+		let mut kill: bool;
+        // voting
+		//let mut counter = 0;
 		loop{
 			//recvr
 			match self.rx.recv() {
 				Ok(res) => { 
+					self.state=ParticipantState::ReceivedP1;
 					let mut request = res.clone();
-					let optional = None;
-					self.perform_operation(&optional);
-					match self.state{
-						ParticipantState::VotedCommit => request.mtype = MessageType::ParticipantVoteCommit,
-						ParticipantState::VotedAbort => request.mtype = MessageType::ParticipantVoteAbort,
-						_ =>  request.mtype = MessageType::ParticipantVoteAbort,
+					if request.mtype==MessageType::CoordinatorExit &&  request.txid == "done" {
+						trace!("{}::Exiting", self.id_str.clone());
+						//println!("exit!");
+						break;
 					}
+					let optional = None;
+					self.perform_operation(&optional); //vote commit or not
+					
+					match self.state{
+						ParticipantState::VotedCommit => {
+							request.mtype = MessageType::ParticipantVoteCommit;
+							self.state = ParticipantState::VotedCommit;
+						},
+						_ => {
+							request.mtype = MessageType::ParticipantVoteAbort;
+							self.state=ParticipantState::VotedAbort;
+						}
+					}
+					self.log.append( request.mtype.clone(), request.txid.clone(), request.senderid.clone(), request.opid.clone());
 					self.send(request);
-					self.state=ParticipantState::Quiescent;
+					
 				},
 				Err(_) => {
 
 				}
-			}			
-		}
-		
 
-        self.wait_for_exit_signal();
+			}
+			/*counter +=1;
+				if counter ==2{
+					break;
+				}*/
+			//println!("voted p{}",self.id_str);
+			//await decision
+			self.state = ParticipantState::AwaitingGlobalDecision;	
+			
+			match self.rx.recv() {
+				Ok(res) => { 
+					let mut request = res.clone();
+					self.log.append( request.mtype.clone(), request.txid.clone(), request.senderid.clone(), request.opid.clone());
+				},
+				Err(_) => {
+				}		
+			}
+			//println!("decision part {}",self.id_str);
+			self.state = ParticipantState::Quiescent;				
+		}
+	    //self.wait_for_exit_signal();
+		
+		
+	
+		
         self.report_status();
     }
 }

@@ -40,7 +40,7 @@ use std::{time::Duration};
 ///
 fn spawn_child_and_connect(child_opts: &mut tpcoptions::TPCOptions) -> (Child, Sender<ProtocolMessage>, Receiver<ProtocolMessage>) {
     let (server, server_name) = IpcOneShotServer::<(Sender<ProtocolMessage>, Receiver<ProtocolMessage>)>::new().unwrap();
-    println!("{}",server_name.to_string());
+    //println!("{}",server_name.to_string());
     child_opts.ipc_path = server_name.clone();
     //println!("{}",child_opts.ipc_path.to_string());
 
@@ -54,7 +54,6 @@ fn spawn_child_and_connect(child_opts: &mut tpcoptions::TPCOptions) -> (Child, S
 
     let (_, (tx,rx)) = server.accept().unwrap();
 
-println!("hello");
     (child, tx, rx )
 }
 
@@ -72,7 +71,7 @@ println!("hello");
 fn connect_to_coordinator(opts: &tpcoptions::TPCOptions) -> (Sender<ProtocolMessage>, Receiver<ProtocolMessage>) {
     let (tx, rx) = channel().unwrap();
     
-    // TODO
+
 
     (tx, rx)
 }
@@ -94,7 +93,7 @@ fn connect_to_coordinator(opts: &tpcoptions::TPCOptions) -> (Sender<ProtocolMess
 fn run(opts: & tpcoptions::TPCOptions, running: Arc<AtomicBool>) {
     let coord_log_path = format!("{}//{}", opts.log_path, "coordinator.log");
     println!("{}", opts.mode);
-    // TODO
+
 
     let mut coor = coordinator::Coordinator::new( coord_log_path, &running, opts.num_requests.clone());
     let mut counter = 0;
@@ -106,7 +105,7 @@ fn run(opts: & tpcoptions::TPCOptions, running: Arc<AtomicBool>) {
 		client_opts.num =counter;
 		let ( client, coor_cl_tx, cl_coor_rx) = spawn_child_and_connect( &mut client_opts.clone());
 		
-        let proc_name=client_opts.num.to_string();
+        let proc_name=format!("{}",client_opts.num.to_string());
 		
 		println!("{}",proc_name);
         coor.client_join(&proc_name,coor_cl_tx, cl_coor_rx);
@@ -123,7 +122,7 @@ fn run(opts: & tpcoptions::TPCOptions, running: Arc<AtomicBool>) {
 		part_opts.num =counter;
 		let ( participant, coor_part_tx, part_coor_rx) = spawn_child_and_connect( &mut part_opts.clone());
 
-        let proc_name=part_opts.num.to_string();
+        let proc_name=format!("{}",part_opts.num.to_string());
         coor.participant_join(&proc_name, coor_part_tx, part_coor_rx);
 
         counter+= 1;
@@ -131,7 +130,7 @@ fn run(opts: & tpcoptions::TPCOptions, running: Arc<AtomicBool>) {
             break;
         }
     };
-    
+    println!{"starting coor"}
 	coor.protocol();
 }
 
@@ -146,8 +145,7 @@ fn run(opts: & tpcoptions::TPCOptions, running: Arc<AtomicBool>) {
 /// 3. Starts the client protocol
 ///
 fn run_client(opts: & tpcoptions::TPCOptions, running: Arc<AtomicBool>) {
-    // TODO
-    println!("in client");
+
 	let server = Sender::connect(opts.ipc_path.clone()).unwrap();
     let (cl_coor_tx, cl_coor_rx):(Sender::<ProtocolMessage>, Receiver::<ProtocolMessage>) = channel().unwrap();
 	let (coor_cl_tx, coor_cl_rx):(Sender::<ProtocolMessage>, Receiver::<ProtocolMessage>) = channel().unwrap();
@@ -172,16 +170,15 @@ fn run_participant(opts: & tpcoptions::TPCOptions, running: Arc<AtomicBool>) {
     let participant_id_str = format!("participant_{}", opts.num);
     let participant_log_path = format!("{}//{}.log", opts.log_path, participant_id_str);
 
-    // TODO
-	println!("in participant");
 	let server = Sender::connect(opts.ipc_path.clone()).unwrap();
     let (part_coor_tx, part_coor_rx):(Sender::<ProtocolMessage>, Receiver::<ProtocolMessage>) = channel().unwrap();
 	let (coor_part_tx, coor_part_rx):(Sender::<ProtocolMessage>, Receiver::<ProtocolMessage>) = channel().unwrap();
 	server.send((coor_part_tx,part_coor_rx)).unwrap();
 	
 	
-	let mut participant = Participant::new( opts.num.to_string(), opts.log_path.clone(), running,opts.send_success_probability, opts.operation_success_probability,part_coor_tx,coor_part_rx);
+	let mut participant = Participant::new( opts.num.to_string(), participant_log_path, running,opts.send_success_probability, opts.operation_success_probability,part_coor_tx,coor_part_rx);
 	participant.protocol();
+	
 }
 
 fn main() {
@@ -210,6 +207,7 @@ fn main() {
             print!("\n");
         }
     }).expect("Error setting signal handler!");
+
 
     // Execute main logic
     match opts.mode.as_ref() {

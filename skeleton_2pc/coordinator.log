@@ -1,0 +1,4 @@
+{"mtype":"CoordinatorAbort","uid":1,"txid":"client1_op_1","senderid":"1","opid":1,"cl_id":0}
+{"mtype":"CoordinatorCommit","uid":2,"txid":"client0_op_1","senderid":"0","opid":1,"cl_id":0}
+{"mtype":"CoordinatorAbort","uid":3,"txid":"client1_op_2","senderid":"1","opid":2,"cl_id":0}
+{"mtype":"CoordinatorCommit","uid":4,"txid":"client0_op_2","senderid":"0","opid":2,"cl_id":0}
